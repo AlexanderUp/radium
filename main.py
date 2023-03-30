@@ -32,30 +32,33 @@ async def write_file_to_tempdir(url: str, data: bytes, directory: str) -> None:
 
 async def process_file(url: str,
                        session: ClientSession,
-                       directory: str) -> None:
-    file_content = await download_file(url, session)
-    await write_file_to_tempdir(url, file_content, directory)
+                       directory: str,
+                       semaphore: asyncio.Semaphore) -> None:
+    async with semaphore:
+        file_content = await download_file(url, session)
+        await write_file_to_tempdir(url, file_content, directory)
 
 
-async def main(urls: list, directory: str) -> None:
+async def set_tasks(urls: list,
+                    directory: str,
+                    concur_task_num: int) -> None:
     session = aiohttp.ClientSession()
+    sem = asyncio.Semaphore(concur_task_num)
     tasks = [asyncio.create_task(
-        process_file(url, session, directory)) for url in urls]
-    tasks_number = len(tasks)
-    logging.info(f"{tasks_number} urls collected.")
+        process_file(url, session, directory, sem)) for url in urls]
+    logging.info(f"{len(tasks)} urls collected.")
     await asyncio.gather(*tasks)
     await session.close()
 
 
-if __name__ == "__main__":
-    url = "https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents"
-
+async def main(url, concur_task_num=3):
     logging.info("Script started.")
     urls = parse_dir(url)
 
     with tempfile.TemporaryDirectory() as tempdir:
         logging.info(f"Temporary dir: {tempdir}")
-        asyncio.run(main(urls, tempdir))
+
+        await set_tasks(urls, tempdir, concur_task_num)
 
         paths = list(Path(tempdir).iterdir())
 
@@ -64,3 +67,9 @@ if __name__ == "__main__":
                 print(f"{hash} {path}")
 
     logging.info("Script completed.")
+
+
+if __name__ == "__main__":
+    url = "https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents"  # noqa
+
+    asyncio.run(main(url))
