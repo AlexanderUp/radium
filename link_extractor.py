@@ -1,29 +1,35 @@
-import json
+"""Return list of links in specifed remote repository directory."""
+
 from typing import Union
 
-import requests
+from aiohttp import ClientSession
 
 
-def parse_json(json_data: dict) -> list:
+async def parse_json_content(json_data: dict, session: ClientSession) -> list:
+    """Parse json content."""
     link_list = []
     obj_type: Union[str, None] = json_data.get('type')
     if obj_type == 'file':
         download_url = json_data.get('download_url')
-        link_list.append(download_url)
+        if download_url:
+            link_list.append(download_url)
     elif obj_type == 'dir':
         download_url = json_data.get('url')
-        link_list.extend(parse_repo_dir(download_url))  # type:ignore
+        if download_url:
+            extracted_links = await parse_repo_dir(download_url, session)
+            link_list.extend(extracted_links)
     else:
         raise ValueError('Unknown object type.')
     return link_list
 
 
-def parse_repo_dir(url: str) -> list:
-    link_list = []
-    response = requests.get(url, timeout=10)
-    json_objs = json.loads(response.text)
+async def parse_repo_dir(url: str, session: ClientSession) -> list:
+    """Recursively parse given repo directory."""
+    link_list: list[str] = []
+    async with session.get(url) as resp:
+        response_json = await resp.json()
 
-    for json_obj in json_objs:
-        link_list.extend(parse_json(json_obj))
-
+    for json_obj in response_json:
+        extracted_links = await parse_json_content(json_obj, session)
+        link_list.extend(extracted_links)
     return link_list

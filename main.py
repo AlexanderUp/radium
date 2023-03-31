@@ -18,51 +18,65 @@ logging.basicConfig(
 
 
 async def download_file(file_url: str, session: ClientSession) -> bytes:
+    """Download file with given URL."""
     logging.info(f'Processing: {file_url}')
     async with session.get(file_url) as response:
         return await response.read()
 
 
-async def write_file_to_tempdir(file_url: str, file_content: bytes, directory: str) -> None:
+async def write_file_to_tempdir(
+        file_url: str,
+        file_content: bytes,
+        directory: str,
+) -> None:
+    """Write file to given directory."""
     path_to_file = Path(directory) / Path(file_url).name
     async with async_open(path_to_file, 'bw') as out_file:
         await out_file.write(file_content)
 
 
-async def process_file(url: str,
-                       session: ClientSession,
-                       directory: str,
-                       semaphore: asyncio.Semaphore
-                       ) -> None:
+async def process_file(
+        url: str,
+        session: ClientSession,
+        directory: str,
+        semaphore: asyncio.Semaphore,
+) -> None:
+    """Download file from given URL and write them to specified directory."""
     async with semaphore:
         file_content = await download_file(url, session)
         await write_file_to_tempdir(url, file_content, directory)
 
 
-async def run_tasks(urls: list,
-                    directory: str,
-                    concur_task_num: int) -> None:
-    session = ClientSession()
+async def run_tasks(
+        urls: list,
+        directory: str,
+        session: ClientSession,
+        concur_task_num: int,
+) -> None:
+    """Create and schedule tasks for execution."""
     sem = asyncio.Semaphore(concur_task_num)
-    tasks = [asyncio.create_task(
-        process_file(url, session, directory, sem)) for url in urls]
+    tasks = [process_file(url, session, directory, sem) for url in urls]
     logging.info(f'{len(tasks)} urls collected.')
     await asyncio.gather(*tasks)
     await session.close()
 
 
-def main(url, concur_task_num=3):
+async def main(url, concur_task_num=3):
+    """Download file, save them and calculate hash."""
     logging.info('Script started.')
-    urls = parse_repo_dir(url)
 
     with tempfile.TemporaryDirectory() as tempdir:
-        asyncio.run(run_tasks(urls, tempdir, concur_task_num))
+        async with ClientSession() as session:
+            urls = await parse_repo_dir(url, session)
 
-        paths = list(Path(tempdir).iterdir())
+            await run_tasks(urls, tempdir, session, concur_task_num)
 
-        with ProcessPoolExecutor() as executor:
-            for path, calculated_hash in zip(paths, executor.map(get_hash, paths)):
-                print(f'{calculated_hash} {path}')
+            paths = list(Path(tempdir).iterdir())
+
+            with ProcessPoolExecutor() as executor:
+                zipped_paths = zip(paths, executor.map(get_hash, paths))
+                for path, calculated_hash in zipped_paths:
+                    logging.info(f'{calculated_hash} {path}')
 
     logging.info('Script completed.')
 
@@ -70,4 +84,4 @@ def main(url, concur_task_num=3):
 if __name__ == '__main__':
     url = 'https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents'  # noqa
 
-    main(url)
+    asyncio.run(main(url))
