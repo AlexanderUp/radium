@@ -1,5 +1,6 @@
+"""Download files from repo, save them, calculate hash."""
+
 import asyncio
-import logging
 import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -7,19 +8,14 @@ from pathlib import Path
 from aiofile import async_open
 from aiohttp import ClientSession
 
+from aux_utils import get_hash
 from link_extractor import parse_repo_dir
-from utils import get_hash
-
-logging.basicConfig(
-    format='[%(levelname)s]:%(asctime)s - %(message)s',
-    datefmt='%m/%d/%Y %I:%M:%S %p',
-    level=logging.INFO,
-)
+from loggers import logger
 
 
 async def download_file(file_url: str, session: ClientSession) -> bytes:
     """Download file with given URL."""
-    logging.info(f'Processing: {file_url}')
+    logger.info(f'Processing: {file_url}')
     async with session.get(file_url) as response:
         return await response.read()
 
@@ -56,14 +52,14 @@ async def run_tasks(
     """Create and schedule tasks for execution."""
     sem = asyncio.Semaphore(concur_task_num)
     tasks = [process_file(url, session, directory, sem) for url in urls]
-    logging.info(f'{len(tasks)} urls collected.')
+    logger.info(f'{len(tasks)} urls collected.')
     await asyncio.gather(*tasks)
     await session.close()
 
 
 async def main(url, concur_task_num=3):
     """Download file, save them and calculate hash."""
-    logging.info('Script started.')
+    logger.info('Script started.')
 
     with tempfile.TemporaryDirectory() as tempdir:
         async with ClientSession() as session:
@@ -76,12 +72,11 @@ async def main(url, concur_task_num=3):
             with ProcessPoolExecutor() as executor:
                 zipped_paths = zip(paths, executor.map(get_hash, paths))
                 for path, calculated_hash in zipped_paths:
-                    logging.info(f'{calculated_hash} {path}')
+                    logger.info(f'{calculated_hash} {path}')
 
-    logging.info('Script completed.')
+    logger.info('Script completed.')
 
 
 if __name__ == '__main__':
-    url = 'https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents'  # noqa
-
+    url = 'https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents'
     asyncio.run(main(url))

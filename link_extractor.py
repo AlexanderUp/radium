@@ -2,7 +2,9 @@
 
 from typing import Union
 
-from aiohttp import ClientSession
+from aiohttp import ClientError, ClientSession
+
+from loggers import logger
 
 
 async def parse_json_content(json_data: dict, session: ClientSession) -> list:
@@ -26,10 +28,13 @@ async def parse_json_content(json_data: dict, session: ClientSession) -> list:
 async def parse_repo_dir(url: str, session: ClientSession) -> list:
     """Recursively parse given repo directory."""
     link_list: list[str] = []
-    async with session.get(url) as resp:
-        response_json = await resp.json()
-
-    for json_obj in response_json:
-        extracted_links = await parse_json_content(json_obj, session)
-        link_list.extend(extracted_links)
+    try:
+        async with session.get(url) as resp:
+            response_json = await resp.json()
+    except ClientError as err:
+        logger.error('Got exception:', err)
+    else:
+        for json_obj in response_json:
+            extracted_links = await parse_json_content(json_obj, session)
+            link_list.extend(extracted_links)
     return link_list
