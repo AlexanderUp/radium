@@ -7,7 +7,6 @@ from pathlib import Path
 
 from aiofile import async_open
 from aiohttp import ClientError, ClientSession
-
 from aux_utils import get_hash
 from link_extractor import parse_repo_dir
 from loggers import logger
@@ -15,13 +14,14 @@ from loggers import logger
 
 async def download_file(file_url: str, session: ClientSession) -> bytes:
     """Download file with given URL."""
-    logger.info('Processing: {0}'.format(file_url))
+    msg = 'Processing: {0}'.format(file_url)
+    logger.info(msg)
     file_content = b''
     try:
         async with session.get(file_url) as response:
             file_content = await response.read()
     except ClientError as err:
-        logger.error(err)
+        logger.error('Error occured.')
     return file_content
 
 
@@ -36,7 +36,7 @@ async def write_file_to_tempdir(
         async with async_open(path_to_file, 'bw') as out_file:
             await out_file.write(file_content)
     except OSError as err:
-        logger.error(err)
+        logger.error('Error occured.')
 
 
 async def process_file(
@@ -60,7 +60,8 @@ async def run_tasks(
     """Create and schedule tasks for execution."""
     sem = asyncio.Semaphore(concur_task_num)
     tasks = [process_file(url, session, directory, sem) for url in urls]
-    logger.info('{0} urls collected.'.format(len(tasks)))
+    msg = '{0} urls collected.'.format(len(tasks))
+    logger.info(msg)
     await asyncio.gather(*tasks)
     await session.close()
 
@@ -70,10 +71,11 @@ def log_file_hashes(paths: list) -> None:
     with ProcessPoolExecutor() as executor:
         zipped_paths = zip(paths, executor.map(get_hash, paths))
         for path, calculated_hash in zipped_paths:
-            logger.info('{0} {1}'.format(calculated_hash, path))
+            msg = '{0} {1}'.format(calculated_hash, path)
+            logger.info(msg)
 
 
-async def main(url, concur_task_num=3):
+async def main(url: str, concur_task_num: int = 3) -> None:
     """Download file, save them and calculate hash."""
     logger.info('Script started.')
 

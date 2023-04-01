@@ -3,7 +3,6 @@
 from typing import Union
 
 from aiohttp import ClientError, ClientSession
-
 from loggers import logger
 
 
@@ -32,7 +31,7 @@ async def parse_repo_dir(url: str, session: ClientSession) -> list:
         async with session.get(url) as resp:
             response_json = await resp.json()
     except ClientError as err:
-        logger.error('Got exception:', err)
+        logger.error('Error occured.')
     else:
         for json_obj in response_json:
             extracted_links = await parse_json_content(json_obj, session)
