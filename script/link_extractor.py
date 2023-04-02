@@ -20,7 +20,9 @@ async def parse_json_content(json_data: dict, session: ClientSession) -> list:
             extracted_links = await parse_repo_dir(download_url, session)
             link_list.extend(extracted_links)
     else:
-        raise ValueError('Unknown object type.')
+        err_msg = 'Unknown object type.'
+        logger.error(err_msg)
+        raise ValueError(err_msg)
     return link_list
 
 
@@ -30,7 +32,7 @@ async def parse_repo_dir(url: str, session: ClientSession) -> list:
     try:
         async with session.get(url) as resp:
             response_json = await resp.json()
-    except ClientError as err:
+    except ClientError:
         logger.error('Error occured.')
     else:
         for json_obj in response_json:

@@ -92,5 +92,5 @@ async def main(url: str, concur_task_num: int = 3) -> None:
 
 
 if __name__ == '__main__':
-    url = 'https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents'
+    url = 'https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents/'
     asyncio.run(main(url))
