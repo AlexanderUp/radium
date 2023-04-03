@@ -21,7 +21,7 @@ Application is able to:
 
 - Install dependencies
 
-```poetry install``
+```poetry install```
 
 - Switch to poetry shell to run script inside virtual environment
 
