@@ -92,5 +92,7 @@ async def main(url: str, concur_task_num: int = 3) -> None:
 
 
 if __name__ == '__main__':
-    url = 'https://gitea.radium.group/api/v1/repos/radium/project-configuration/contents/'
+    host = 'https://gitea.radium.group'
+    host_path = '/api/v1/repos/radium/project-configuration/contents/'
+    url = ''.join((host, host_path))
     asyncio.run(main(url))
