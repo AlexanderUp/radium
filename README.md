@@ -34,3 +34,7 @@ Application is able to:
 - Run script
 
 ```python3 main.py```
+
+- Run tests
+
+```pytest``` or ```python3 -m pytest```
